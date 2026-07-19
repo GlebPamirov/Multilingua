@@ -98,9 +98,19 @@ function updateConnectionStatus(statusClass, text) {
 }
 
 /**
- * Управление глобальной навигацией (Нижний таб-бар)
+ * Управление глобальной навигацией (Нижний таб-бар) и кнопками статуса
  */
 function setupNavigationListeners() {
+    // Добавляем перезагрузку страницы по клику на элемент connectionStatus
+    if (connectionStatus) {
+        connectionStatus.style.cursor = 'pointer'; // Делаем элемент визуально кликабельным
+        connectionStatus.onclick = (e) => {
+            e.preventDefault();
+            updateConnectionStatus('sync', 'Перезагрузка...');
+            window.location.reload();
+        };
+    }
+
     navButtons.forEach(btn => {
         btn.onclick = (e) => {
             navButtons.forEach(b => b.classList.remove('active'));
