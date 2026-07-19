@@ -468,7 +468,14 @@ body {
    6. УЛЬТРА-МИНИМАЛИСТИЧНАЯ ФОРМА ВВОДА И ДОБАВЛЕНИЯ (ADD)
    ========================================================================== */
 .add-form-container { padding: 4px 0; }
-.add-screen-container { display: flex; flex-direction: column; padding: 10px 4px; }
+.add-screen-container { display: flex;
+    flex-direction: column;
+    /* Использование динамической высоты вьюпорта вместо жестких vh */
+    min-height: calc(100dvh - var(--header-height, 60px)); 
+    box-sizing: border-box;
+    padding-bottom: 90px; /* Гарантированный отступ под фиксированную кнопку */
+    position: relative;
+}
 .form-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color); }
 .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-color); }
@@ -580,9 +587,9 @@ body {
 .optional-fields-toggles {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin: 4px 0 16px 0;
-    padding: 6px 2px;
+    gap: 8px;
+    margin: 15px 0;
+    padding-bottom: 10px;
 }
 
 .toggle-field-btn {
@@ -771,14 +778,21 @@ body {
    8. ФИКСИРОВАННЫЕ УНИВЕРСАЛЬНЫЕ КНОПКИ ПЛЮС (FAB)
    ========================================================================== */
 .plus-btn-container {
+    position: fixed;
+    /* Кнопка будет прижата к самому низу экрана с учетом безопасных зон (iOS/Android) */
+    bottom: max(20px, env(safe-area-inset-bottom)); 
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999; /* Поверх всех остальных элементов */
+    width: 100%;
+    max-width: 500px; /* Ограничиваем по ширине контента, если открыто на планшете */
     display: flex;
     justify-content: center;
-    align-items: center;
-    margin-top: 24px;
-    padding: 10px 0;
+    pointer-events: none; /* Пропускаем клики сквозь контейнер */
 }
 
 .huge-plus-btn {
+    pointer-events: auto;
     width: 60px;
     height: 60px;
     border-radius: 50%;
