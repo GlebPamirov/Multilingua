@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- Обеспечивает идеальное отображение на смартфонах (запрещает дефолтное масштабирование) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Multilingua — Параллельное изучение языков</title>
+    
+    <!-- Подключаем стили (создадим на следующем шаге) -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Главный контейнер приложения -->
+    <div id="app">
+        
+        <!-- Шапка приложения -->
+        <header class="app-header">
+            <h1>Multilingua</h1>
+            <span id="connection-status" class="status-badge checking">Проверка связи...</span>
+        </header>
+
+        <!-- Основная рабочая зона -->
+        <main class="app-content">
+            <!-- Сюда наши JS-модули будут динамически вставлять карточки и интерфейс -->
+            <div id="main-container">
+                <p class="loading-text">Загрузка интерфейса приложения...</p>
+            </div>
+        </main>
+
+        <!-- Нижняя панель навигации (удобная для пальца на смартфоне) -->
+        <nav class="app-navigation">
+			<button class="nav-btn active" data-screen="dashboard">Главная</button>
+            <button class="nav-btn" data-screen="cards">Карточки</button>
+            <button class="nav-btn" data-screen="dictionary">Словарь</button>
+            <button class="nav-btn" data-screen="add">Добавить</button>
+        </nav>
+
+    </div>
+
+    <!-- 
+      Главная точка входа в JavaScript. 
+      Атрибут type="module" критически важен! Он позволяет использовать 
+      команды import/export для сборки приложения из десятков мелких js-файлов.
+    -->
+    <script src="dashboard.js"></script>
+	<script src="cards.js"></script>
+	<script src="dictionary.js"></script>
+	<script src="add.js"></script>
+	
+	<!-- MAIN.JS всегда последним -->
+	<script src="main.js"></script>
+</body>
+</html>
