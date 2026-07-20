@@ -1,164 +1,114 @@
 /**
- * CARDS.JS — Модуль интерактивных Fluid-карточек концептов с нижней панелью примеров.
+ * CARDS.JS — Интерактивные Fluid-карточки с группировкой по Concept_ID.
+ * Ожидает массив объектов со структурой:
+ * { Concept_ID, Lang_ID, Word, Translation, Transcription }
  */
 
-// Временные тестовые данные языков
-const testLanguages = [
-    { id: 'en', name: 'Английский' },
-    { id: 'ru', name: 'Русский' },
-    { id: 'akk', name: 'Аккадский' },
-    { id: 'zh', name: 'Китайский' },
-    { id: 'ja', name: 'Японский' },
-    { id: 'egy', name: 'Древнеегипетский' },
-    { id: 'sa', name: 'Санскрит' },
-    { id: 'de', name: 'Немецкий' },
-    { id: 'la', name: 'Латынь' },
-    { id: 'grc', name: 'Древнегреческий' }
-];
+let cardsState = {
+    groupedConcepts: [], // Массив сгруппированных карточек
+    currentIndex: 0,
+    activeCloudInstance: null
+};
 
-// 5 Концептов
-const testConcepts = [
-    { id: 1, name_ru: 'Вода' },
-    { id: 2, name_ru: 'Солнце' },
-    { id: 3, name_ru: 'Дом' },
-    { id: 4, name_ru: 'Огонь' },
-    { id: 5, name_ru: 'Дерево' }
-];
+/**
+ * Инициализация модуля карточек.
+ * @param {HTMLElement} container — Элемент-контейнер.
+ * @param {Array<Object>} rawData — Плоский массив строк из таблицы БД.
+ */
+function initCards(container, rawData = []) {
+    // --- [DEBUG START: Проверка входящих данных] ---
+    console.group('🔍 [DEBUG CARDS] Вызов initCards()');
+    console.log('Контейнер:', container);
+    console.log('Тип rawData:', typeof rawData, 'Is Array:', Array.isArray(rawData));
+    console.log('Количество элементов rawData:', rawData ? rawData.length : 0);
 
-// Слова для 5 концептов
-const testWords = [
-    // 1. Вода
-    { id: 101, concept_id: 1, lang_id: 'zh', word: '水', transcription: 'shuǐ', type: 'glyph' },
-    { id: 102, concept_id: 1, lang_id: 'ja', word: '水', transcription: 'mizu', type: 'glyph' },
-    { id: 103, concept_id: 1, lang_id: 'akk', word: 'A.MEŠ', transcription: 'mû', type: 'glyph' },
-    { id: 104, concept_id: 1, lang_id: 'egy', word: '𓈋𓈋𓈋', transcription: 'mw', type: 'glyph' },
-    { id: 105, concept_id: 1, lang_id: 'sa', word: 'जल', transcription: 'jala', type: 'glyph' },
-    { id: 106, concept_id: 1, lang_id: 'en', word: 'water', transcription: '[ˈwɔːtər]', type: 'alpha' },
-    { id: 107, concept_id: 1, lang_id: 'de', word: 'Wasser', transcription: '[ˈvasɐ]', type: 'alpha' },
-    { id: 108, concept_id: 1, lang_id: 'la', word: 'aqua', transcription: '[ˈa.kʷa]', type: 'alpha' },
-    { id: 109, concept_id: 1, lang_id: 'grc', word: 'ὕδωρ', transcription: '[hýdɔːr]', type: 'alpha' },
-    { id: 110, concept_id: 1, lang_id: 'ru', word: 'Вода', transcription: '[vɐˈda]', type: 'alpha' },
+    if (rawData && rawData.length > 0) {
+        console.log('Пример первой сырой строки:', rawData[0]);
+        console.log('Ключи первой строки:', Object.keys(rawData[0]));
 
-    // 2. Солнце
-    { id: 201, concept_id: 2, lang_id: 'zh', word: '日', transcription: 'rì', type: 'glyph' },
-    { id: 202, concept_id: 2, lang_id: 'ja', word: '日', transcription: 'hi', type: 'glyph' },
-    { id: 203, concept_id: 2, lang_id: 'akk', word: 'ŠAMŠU', transcription: 'šamšu', type: 'glyph' },
-    { id: 204, concept_id: 2, lang_id: 'egy', word: '𓇳', transcription: 'rʿ', type: 'glyph' },
-    { id: 205, concept_id: 2, lang_id: 'sa', word: 'सूर्य', transcription: 'sūrya', type: 'glyph' },
-    { id: 206, concept_id: 2, lang_id: 'en', word: 'sun', transcription: '[sʌn]', type: 'alpha' },
-    { id: 207, concept_id: 2, lang_id: 'de', word: 'Sonne', transcription: '[ˈzɔnə]', type: 'alpha' },
-    { id: 208, concept_id: 2, lang_id: 'la', word: 'sol', transcription: '[soːl]', type: 'alpha' },
-    { id: 209, concept_id: 2, lang_id: 'grc', word: 'ἥλιος', transcription: '[hɛ̌ːlios]', type: 'alpha' },
-    { id: 210, concept_id: 2, lang_id: 'ru', word: 'Солнце', transcription: '[ˈsontsə]', type: 'alpha' },
+        // Ищем сэмплы концепта L_1 в исходных данных
+        const debugTargetRows = rawData.filter(row => {
+            const cId = String(row.Concept_ID || row.concept_id || '').trim();
+            return cId === 'L_1';
+        });
 
-    // 3. Дом
-    { id: 301, concept_id: 3, lang_id: 'zh', word: '家', transcription: 'jiā', type: 'glyph' },
-    { id: 302, concept_id: 3, lang_id: 'ja', word: '家', transcription: 'ie', type: 'glyph' },
-    { id: 303, concept_id: 3, lang_id: 'akk', word: 'BĪTU', transcription: 'bītu', type: 'glyph' },
-    { id: 304, concept_id: 3, lang_id: 'egy', word: '𓉐', transcription: 'pr', type: 'glyph' },
-    { id: 305, concept_id: 3, lang_id: 'sa', word: 'गृह', transcription: 'gṛha', type: 'glyph' },
-    { id: 306, concept_id: 3, lang_id: 'en', word: 'house', transcription: '[haʊs]', type: 'alpha' },
-    { id: 307, concept_id: 3, lang_id: 'de', word: 'Haus', transcription: '[haʊs]', type: 'alpha' },
-    { id: 308, concept_id: 3, lang_id: 'la', word: 'domus', transcription: '[ˈdo.mʊs]', type: 'alpha' },
-    { id: 309, concept_id: 3, lang_id: 'grc', word: 'οἶκος', transcription: '[oî̯.kos]', type: 'alpha' },
-    { id: 310, concept_id: 3, lang_id: 'ru', word: 'Дом', transcription: '[dom]', type: 'alpha' },
+        if (debugTargetRows.length > 0) {
+            console.log('%c✅ Найдены строки для L_1 в rawData:', 'color: #10b981; font-weight: bold;', debugTargetRows);
+        } else {
+            console.warn('%c⚠️ Концепт L_1 не найден в rawData!', 'color: #f59e0b; font-weight: bold;');
+            console.log('Доступные Concept_ID в rawData:', [...new Set(rawData.map(r => r.Concept_ID || r.concept_id))]);
+        }
+    } else {
+        console.error('%c❌ rawData пуст или не передан!', 'color: #ef4444; font-weight: bold;');
+    }
+    console.groupEnd();
+    // --- [DEBUG END] ---
 
-    // 4. Огонь
-    { id: 401, concept_id: 4, lang_id: 'zh', word: '火', transcription: 'huǒ', type: 'glyph' },
-    { id: 402, concept_id: 4, lang_id: 'ja', word: '火', transcription: 'hi', type: 'glyph' },
-    { id: 403, concept_id: 4, lang_id: 'akk', word: 'IŠĀTU', transcription: 'išātu', type: 'glyph' },
-    { id: 404, concept_id: 4, lang_id: 'egy', word: '𓊮', transcription: 'ḫt', type: 'glyph' },
-    { id: 405, concept_id: 4, lang_id: 'sa', word: 'अग्नि', transcription: 'agni', type: 'glyph' },
-    { id: 406, concept_id: 4, lang_id: 'en', word: 'fire', transcription: '[ˈfaɪər]', type: 'alpha' },
-    { id: 407, concept_id: 4, lang_id: 'de', word: 'Feuer', transcription: '[ˈfɔʏɐ]', type: 'alpha' },
-    { id: 408, concept_id: 4, lang_id: 'la', word: 'ignis', transcription: '[ˈɪɡ.nɪs]', type: 'alpha' },
-    { id: 409, concept_id: 4, lang_id: 'grc', word: 'πῦρ', transcription: '[pŷːr]', type: 'alpha' },
-    { id: 410, concept_id: 4, lang_id: 'ru', word: 'Огонь', transcription: '[ɐˈɡonʲ]', type: 'alpha' },
-
-    // 5. Дерево
-    { id: 501, concept_id: 5, lang_id: 'zh', word: '木', transcription: 'mù', type: 'glyph' },
-    { id: 502, concept_id: 5, lang_id: 'ja', word: '木', transcription: 'ki', type: 'glyph' },
-    { id: 503, concept_id: 5, lang_id: 'akk', word: 'IṢU', transcription: 'iṣu', type: 'glyph' },
-    { id: 504, concept_id: 5, lang_id: 'egy', word: '𓆱', transcription: 'ḫt', type: 'glyph' },
-    { id: 505, concept_id: 5, lang_id: 'sa', word: 'वृक्ष', transcription: 'vṛkṣa', type: 'glyph' },
-    { id: 506, concept_id: 5, lang_id: 'en', word: 'tree', transcription: '[triː]', type: 'alpha' },
-    { id: 507, concept_id: 5, lang_id: 'de', word: 'Baum', transcription: '[baʊ̯m]', type: 'alpha' },
-    { id: 508, concept_id: 5, lang_id: 'la', word: 'arbor', transcription: '[ˈar.bor]', type: 'alpha' },
-    { id: 509, concept_id: 5, lang_id: 'grc', word: 'δένδρον', transcription: '[dén.dron]', type: 'alpha' },
-    { id: 510, concept_id: 5, lang_id: 'ru', word: 'Дерево', transcription: '[ˈdʲerʲəvə]', type: 'alpha' }
-];
-
-// Примеры контекста для всех 5 концептов
-const testExamples = [
-    // Concept 1: Вода
-    { concept_id: 1, lang_id: 'zh', text: '清澈的水在川流不息地向前奔流。', translation: 'Прозрачная вода непрерывно течет вперед.' },
-    { concept_id: 1, lang_id: 'ja', text: '冷たい水が川を静かに流れていきます。', translation: 'Холодная вода тихо течет по реке.' },
-    { concept_id: 1, lang_id: 'akk', text: 'A.MEŠ ba-na-a ana ma-a-ti i-na-at-ti-nk.', translation: 'Прекрасные воды текут на землю.' },
-    { concept_id: 1, lang_id: 'egy', text: 'mw nfr n jtrw ḥnʿ ḥsmn.', translation: 'Чистая вода реки соединяется с солью.' },
-    { concept_id: 1, lang_id: 'sa', text: 'जलम् एव जीवनस्य आधारः अस्ति।', translation: 'Вода — истинная основа жизни.' },
-    { concept_id: 1, lang_id: 'en', text: 'Water flows quietly through the ancient mountain valley.', translation: 'Вода тихо течет через древнюю горную долину.' },
-    { concept_id: 1, lang_id: 'de', text: 'Das kalte Wasser fließt ruhig durch den tiefen Wald.', translation: 'Холодная вода спокойно течет через густой лес.' },
-    { concept_id: 1, lang_id: 'la', text: 'Aqua vitae est fontis purissimi.', translation: 'Вода жизни из чистейшего источника.' },
-    { concept_id: 1, lang_id: 'grc', text: 'Ὕδωρ ἐστὶν ἄριστον τοῖς ἀνθρώποις.', translation: 'Вода — лучшее благо для людей.' },
-    { concept_id: 1, lang_id: 'ru', text: 'Чистая вода струится по гладким камням.', translation: 'Чистая вода струится по гладким камням.' },
-
-    // Concept 2: Солнце
-    { concept_id: 2, lang_id: 'zh', text: '明亮的太阳在蓝天中高高升起。', translation: 'Яркое солнце высоко поднимается в синем небе.' },
-    { concept_id: 2, lang_id: 'ja', text: '明るい日差しが部屋全体に広がります。', translation: 'Яркий солнечный свет заполняет всю комнату.' },
-    { concept_id: 2, lang_id: 'akk', text: 'ŠA.MŠU ra-bi-u i-na ša-me-e i-šar-ra-ḫu.', translation: 'Великое солнце сияет в небесах.' },
-    { concept_id: 2, lang_id: 'egy', text: 'rʿ wbn m pt ḥnʿ ḥtp.', translation: 'Солнце восходит на небесах и заходит.' },
-    { concept_id: 2, lang_id: 'sa', text: 'सूर्यः गगने तीव्रं तपति।', translation: 'Солнце ярко светит в небесах.' },
-    { concept_id: 2, lang_id: 'en', text: 'The morning sun warms the quiet green forest.', translation: 'Утреннее солнце согревает тихий зеленый лес.' },
-    { concept_id: 2, lang_id: 'de', text: 'Die Sonne scheint heute sehr warm am Himmel.', translation: 'Сегодня солнце очень тепло светит на небе.' },
-    { concept_id: 2, lang_id: 'la', text: 'Sol fulget in caelo sereno et alto.', translation: 'Солнце сияет в ясном и высоком небе.' },
-    { concept_id: 2, lang_id: 'grc', text: 'Ὁ ἥλιος λάμπει ἐν τῷ οὐρανῷ.', translation: 'Солнце сияет на небе.' },
-    { concept_id: 2, lang_id: 'ru', text: 'Теплый солнечный луч упал на старый стол.', translation: 'Теплый солнечный луч упал на старый стол.' },
-
-    // Concept 3: Дом
-    { concept_id: 3, lang_id: 'zh', text: '我们的家充满着温暖与欢欢喜喜。', translation: 'Наш дом полон тепла и радости.' },
-    { concept_id: 3, lang_id: 'ja', text: '新しい家は美しい山の上に立っています。', translation: 'Новый дом стоит на красивой горе.' },
-    { concept_id: 3, lang_id: 'akk', text: 'bītu epšu ina libbi āli ša šarri.', translation: 'Построенный дом в центре царского города.' },
-    { concept_id: 3, lang_id: 'egy', text: 'pr nfr n ḥm-nṯr m ḥwt-k3.', translation: 'Прекрасный дом жреца в храме.' },
-    { concept_id: 3, lang_id: 'sa', text: 'अयं गृहः मम परिवारस्य सुखस्य स्थानम्।', translation: 'Этот дом — место счастья моей семьи.' },
-    { concept_id: 3, lang_id: 'en', text: 'Light shined through the windows of the wooden house.', translation: 'Свет светил сквозь окна деревянного дома.' },
-    { concept_id: 3, lang_id: 'de', text: 'Das alte Haus steht seit vielen Jahren am Fluss.', translation: 'Старый дом стоит у реки уже много лет.' },
-    { concept_id: 3, lang_id: 'la', text: 'Domus mea est fortitudo mea et pax.', translation: 'Мой дом — моя крепость и покой.' },
-    { concept_id: 3, lang_id: 'grc', text: 'Ὁ οἶκος ἡμῶν ἐστιν ἐν τῇ πόλει.', translation: 'Наш дом находится в городе.' },
-    { concept_id: 3, lang_id: 'ru', text: 'В окнах старого дома зажглись вечерние огни.', translation: 'В окнах старого дома зажглись вечерние огни.' },
-
-    // Concept 4: Огонь
-    { concept_id: 4, lang_id: 'zh', text: '篝火在漆黑的夜晚也照亮了周围。', translation: 'Костер осветил всё вокруг в темную ночь.' },
-    { concept_id: 4, lang_id: 'ja', text: '暖炉の火が静かに燃えています。', translation: 'Огонь в камине тихо горит.' },
-    { concept_id: 4, lang_id: 'akk', text: 'išātu kabiltu iṣṣī takkal.', translation: 'Сильный огонь пожирает деревья.' },
-    { concept_id: 4, lang_id: 'egy', text: 'ḫt psḏ m wꜣwt n kkw.', translation: 'Огонь светит во тьме дорог.' },
-    { concept_id: 4, lang_id: 'sa', text: 'अग्निः तमसं नाशयति तेजसा।', translation: 'Огонь уничтожает тьму своим светом.' },
-    { concept_id: 4, lang_id: 'en', text: 'The bright fire danced during the dark night.', translation: 'Яркий огонь танцевал среди темной ночи.' },
-    { concept_id: 4, lang_id: 'de', text: 'Das Feuer brennt hell in der kalten Nacht.', translation: 'Огонь ярко горит в холодную ночь.' },
-    { concept_id: 4, lang_id: 'la', text: 'Ignis purgat et illuminat viam nostram.', translation: 'Огонь очищает и освещает наш путь.' },
-    { concept_id: 4, lang_id: 'grc', text: 'Τὸ πῦρ καίει ἐν τῇ ἑστίᾳ.', translation: 'Огонь горит в очаге.' },
-    { concept_id: 4, lang_id: 'ru', text: 'Вечерний огонь в камине дарил уют.', translation: 'Вечерний огонь в камине дарил уют.' },
-
-    // Concept 5: Дерево
-    { concept_id: 5, lang_id: 'zh', text: '高大的树木在秋风中摇曳。', translation: 'Высокие деревья качаются на осеннем ветру.' },
-    { concept_id: 5, lang_id: 'ja', text: '庭の大きな木が綺麗な花を咲かせます。', translation: 'Большое дерево в саду расцветает красивыми цветами.' },
-    { concept_id: 5, lang_id: 'akk', text: 'iṣu rabû ina qišti i-rab-bi.', translation: 'Большое дерево растет в лесу.' },
-    { concept_id: 5, lang_id: 'egy', text: 'ḫt ꜥꜣ m ḥwt-nṯr.', translation: 'Великое дерево в священном храме.' },
-    { concept_id: 5, lang_id: 'sa', text: 'वृक्षः मधुरं फलं ददाति सर्वदा।', translation: 'Дерево всегда дает сладкие плоды.' },
-    { concept_id: 5, lang_id: 'en', text: 'The ancient tree stands at the center of the field.', translation: 'Древнее дерево стоит в центре поля.' },
-    { concept_id: 5, lang_id: 'de', text: 'Der große Baum spendet im Sommer kühlen Schatten.', translation: 'Большое дерево дарит прохладную тень летом.' },
-    { concept_id: 5, lang_id: 'la', text: 'Arbor alta in silva crescit cum tempore.', translation: 'Высокое дерево в лесу растет со временем.' },
-    { concept_id: 5, lang_id: 'grc', text: 'Τὸ δένδρον φέρει καρποὺς καλούς.', translation: 'Дерево приносит хорошие плоды.' },
-    { concept_id: 5, lang_id: 'ru', text: 'Старое дерево укрывало от дождя своими ветвями.', translation: 'Старое дерево укрывало от дождя своими ветвями.' }
-];
-
-let currentConceptIndex = 0;
-let activeFluidCloudInstance = null;
-
-function initCards(container) {
     injectCardsStyles();
+
+    if (!rawData || rawData.length === 0) {
+        container.innerHTML = `<div class="cards-empty">В базе данных нет записей для карточек.</div>`;
+        return;
+    }
+
+    // Группируем плоские строки по Concept_ID
+    cardsState.groupedConcepts = groupDataByConcept(rawData);
+    cardsState.currentIndex = 0;
+
+    // --- [DEBUG START: Проверка сгруппированных данных] ---
+    console.group('🔍 [DEBUG CARDS] Результат groupDataByConcept()');
+    console.log('Всего сгруппировано концептов:', cardsState.groupedConcepts.length);
+
+    const debugGroupedTarget = cardsState.groupedConcepts.find(g => g.conceptId === 'L_1');
+    if (debugGroupedTarget) {
+        console.log('%c🎯 Сгруппированный объект L_1:', 'color: #10b981; font-weight: bold; font-size: 14px;', debugGroupedTarget);
+    } else {
+        console.warn('%c⚠️ L_1 отсутствует в сгруппированном массиве cardsState.groupedConcepts!', 'color: #f59e0b;');
+    }
+    console.groupEnd();
+    // --- [DEBUG END] ---
+
+    // Рендерим каркас
     container.innerHTML = renderCarouselWrapperHTML();
-    loadConceptCard(currentConceptIndex);
+
+    // Загружаем первую карточку
+    loadConceptCard(cardsState.currentIndex);
+
+    // Настраиваем кнопки «Вперед / Назад»
     setupCarouselControls();
+}
+
+/**
+ * Группировка плоских данных из Google Sheets
+ */
+function groupDataByConcept(rows) {
+    const map = new Map();
+
+    rows.forEach((row, index) => {
+        // Проверяем оба регистра ключа
+        const conceptId = String(row.Concept_ID || row.concept_id || '').trim();
+        
+        if (!conceptId) {
+            if (index < 5) console.warn(`[DEBUG] Пропущена строка index=${index}, т.к. Concept_ID пуст:`, row);
+            return;
+        }
+
+        if (!map.has(conceptId)) {
+            map.set(conceptId, {
+                conceptId: conceptId,
+                items: []
+            });
+        }
+
+        map.get(conceptId).items.push({
+            langId: String(row.Lang_ID || row.lang_id || '').toLowerCase().trim(),
+            word: String(row.Word || row.word || '').trim(),
+            translation: String(row.Translation || row.translation || '').trim(),
+            transcription: String(row.Transcription || row.transcription || '').trim()
+        });
+    });
+
+    return Array.from(map.values());
 }
 
 function injectCardsStyles() {
@@ -192,7 +142,7 @@ function injectCardsStyles() {
         .cloud-wrapper {
             position: relative;
             width: 100%;
-            height: 320px;
+            height: 300px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -201,19 +151,6 @@ function injectCardsStyles() {
             background: #ffffff;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
             border: 1px solid rgba(0, 0, 0, 0.06);
-        }
-
-        .concept-label {
-            position: absolute;
-            top: 12px;
-            left: 14px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #18181b;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            pointer-events: none;
-            z-index: 20;
         }
 
         .nav-arrow-btn {
@@ -228,7 +165,6 @@ function injectCardsStyles() {
             cursor: pointer;
             color: #a1a1aa;
             transition: all 0.2s ease;
-            z-index: 30;
             padding: 0;
             border-radius: 50%;
         }
@@ -236,17 +172,11 @@ function injectCardsStyles() {
         .nav-arrow-btn svg {
             width: 22px;
             height: 22px;
-            transition: transform 0.2s ease, stroke-width 0.2s ease;
         }
 
         .nav-arrow-btn:hover {
             color: #18181b;
-            background: rgba(0,0,0,0.03);
-        }
-
-        .nav-arrow-btn:hover svg {
-            stroke-width: 1.5;
-            transform: scale(1.15);
+            background: rgba(0,0,0,0.04);
         }
 
         .lang-select-dropdown {
@@ -258,8 +188,8 @@ function injectCardsStyles() {
             backdrop-filter: blur(6px);
             border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 8px;
-            padding: 3px 6px;
-            font-size: 0.7rem;
+            padding: 4px 8px;
+            font-size: 0.72rem;
             font-weight: 600;
             color: #18181b;
             outline: none;
@@ -268,12 +198,7 @@ function injectCardsStyles() {
             box-shadow: 0 2px 6px rgba(0,0,0,0.04);
         }
 
-        .lang-select-dropdown:hover {
-            border-color: #18181b;
-        }
-
-        /* Нижний блок примеров */
-        .examples-bottom-panel {
+        .translations-bottom-panel {
             width: 100%;
             background: #fafafa;
             border: 1px solid rgba(0, 0, 0, 0.06);
@@ -285,51 +210,62 @@ function injectCardsStyles() {
             gap: 8px;
         }
 
-        .examples-panel-header {
+        .translations-panel-header {
             font-size: 0.65rem;
             font-weight: 700;
             color: #a1a1aa;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
-        .examples-list-container {
+        .translations-list-container {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            max-height: 120px;
+            gap: 6px;
+            max-height: 140px;
             overflow-y: auto;
         }
 
-        .example-card-item {
+        .translation-card-item {
             background: #ffffff;
             border: 1px solid rgba(0, 0, 0, 0.05);
-            padding: 8px 10px;
+            padding: 8px 12px;
             border-radius: 8px;
-            transition: border-color 0.2s ease, background-color 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
         }
 
-        .example-card-item.active-lang {
-            border-color: #2563eb;
-            background-color: rgba(37, 99, 235, 0.02);
+        .translation-card-item.active-lang {
+            border-color: #dc2626;
+            background-color: rgba(220, 38, 38, 0.03);
         }
 
-        .ex-text-orig {
-            font-size: 0.82rem;
-            font-weight: 600;
+        .tr-word-main {
+            font-size: 0.85rem;
+            font-weight: 700;
             color: #18181b;
-            margin: 0 0 2px 0;
-            line-height: 1.3;
         }
 
-        .ex-text-trans {
+        .tr-transcription {
             font-size: 0.75rem;
             color: #71717a;
-            margin: 0;
-            line-height: 1.2;
+            margin-left: 6px;
+            font-weight: normal;
+        }
+
+        .tr-translation {
+            font-size: 0.8rem;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .cards-empty {
+            padding: 40px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #71717a;
         }
 
         canvas {
@@ -350,44 +286,42 @@ function renderCarouselWrapperHTML() {
     return `
         <div class="carousel-root-container">
             <div class="carousel-top-bar">
-                <button class="nav-arrow-btn" id="carousel-prev-btn" title="Предыдущая карта">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <button class="nav-arrow-btn" id="carousel-prev-btn" title="Предыдущий концепт">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 18l-6-6 6-6"/>
                     </svg>
                 </button>
-                <div id="active-concept-title" style="font-size: 0.85rem; font-weight: 700; color: #18181b;"></div>
-                <button class="nav-arrow-btn" id="carousel-next-btn" title="Следующая карта">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <div id="active-concept-title" style="font-size: 0.88rem; font-weight: 700; color: #18181b;"></div>
+                <button class="nav-arrow-btn" id="carousel-next-btn" title="Следующий концепт">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 18l6-6-6-6"/>
                     </svg>
                 </button>
             </div>
 
             <div class="carousel-viewport">
-                <div id="fluid-cloud-stage" class="cloud-wrapper">
-                    <div id="active-concept-label" class="concept-label"></div>
-                </div>
+                <div id="fluid-cloud-stage" class="cloud-wrapper"></div>
             </div>
 
-            <!-- Блок примеров в нижней части -->
-            <div class="examples-bottom-panel">
-                <div class="examples-panel-header">
-                    <span>Примеры употребления</span>
-                    <span id="examples-count-badge" style="color: #2563eb;"></span>
-                </div>
-                <div id="examples-list-target" class="examples-list-container"></div>
+            <div class="translations-bottom-panel">
+                <div class="translations-panel-header">Значения и переводы</div>
+                <div id="translations-list-target" class="translations-list-container"></div>
             </div>
         </div>
     `;
 }
 
 function loadConceptCard(index) {
-    const concept = testConcepts[index];
-    if (!concept) return;
+    const conceptData = cardsState.groupedConcepts[index];
+    
+    // --- [DEBUG LOG] ---
+    console.log(`[DEBUG] Загрузка карточки index=${index}:`, conceptData);
+
+    if (!conceptData) return;
 
     const titleEl = document.getElementById('active-concept-title');
     if (titleEl) {
-        titleEl.textContent = `#0${concept.id} • ${concept.name_ru}`;
+        titleEl.textContent = `Концепт: ${conceptData.conceptId}`;
     }
 
     const stageEl = document.getElementById('fluid-cloud-stage');
@@ -395,10 +329,7 @@ function loadConceptCard(index) {
 
     stageEl.querySelectorAll('canvas, .lang-select-dropdown').forEach(el => el.remove());
 
-    const conceptWords = testWords.filter(w => w.concept_id === concept.id);
-    const conceptExamples = testExamples.filter(e => e.concept_id === concept.id);
-
-    activeFluidCloudInstance = new FluidConceptCloud(stageEl, conceptWords, conceptExamples);
+    cardsState.activeCloudInstance = new FluidConceptCloud(stageEl, conceptData.items);
 }
 
 function setupCarouselControls() {
@@ -407,25 +338,24 @@ function setupCarouselControls() {
 
     if (prevBtn) {
         prevBtn.onclick = () => {
-            currentConceptIndex--;
-            if (currentConceptIndex < 0) currentConceptIndex = testConcepts.length - 1;
-            loadConceptCard(currentConceptIndex);
+            cardsState.currentIndex--;
+            if (cardsState.currentIndex < 0) cardsState.currentIndex = cardsState.groupedConcepts.length - 1;
+            loadConceptCard(cardsState.currentIndex);
         };
     }
 
     if (nextBtn) {
         nextBtn.onclick = () => {
-            currentConceptIndex = (currentConceptIndex + 1) % testConcepts.length;
-            loadConceptCard(currentConceptIndex);
+            cardsState.currentIndex = (cardsState.currentIndex + 1) % cardsState.groupedConcepts.length;
+            loadConceptCard(cardsState.currentIndex);
         };
     }
 }
 
 class FluidConceptCloud {
-    constructor(container, words, examples) {
+    constructor(container, items) {
         this.container = container;
-        this.words = words;
-        this.examples = examples;
+        this.items = items || [];
 
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d');
@@ -439,15 +369,15 @@ class FluidConceptCloud {
         this.initCanvas();
         this.initNodes();
         this.createLangDropdown();
-        this.renderExamplesPanel(this.nodes[0] ? this.nodes[0].lang_id : null);
+        this.renderTranslationsPanel(this.nodes[0] ? this.nodes[0].langId : null);
         this.bindEvents();
         this.animate();
     }
 
     initCanvas() {
         const rect = this.container.getBoundingClientRect();
-        this.width = rect.width;
-        this.height = rect.height;
+        this.width = rect.width || 340;
+        this.height = rect.height || 300;
         this.canvas.width = this.width * this.dpr;
         this.canvas.height = this.height * this.dpr;
         this.ctx.scale(this.dpr, this.dpr);
@@ -457,20 +387,24 @@ class FluidConceptCloud {
         const cx = this.width / 2;
         const cy = this.height / 2;
 
-        this.nodes = this.words.map((w, index) => {
+        this.nodes = this.items.map((item, index) => {
             const isCenter = index === 0;
-            const angle = (index / this.words.length) * Math.PI * 2;
-            const radius = isCenter ? 0 : 85 + Math.random() * 15;
+            const angle = (index / (this.items.length || 1)) * Math.PI * 2;
+            const radius = isCenter ? 0 : 80 + Math.random() * 20;
+
+            // Определяем символы/глифы
+            const isGlyph = item.word.length <= 3 && !/^[a-zA-Zа-яА-Я0-9]+$/.test(item.word);
 
             const node = {
-                ...w,
+                ...item,
                 x: cx + Math.cos(angle) * radius,
                 y: cy + Math.sin(angle) * radius,
                 vx: 0, vy: 0,
-                targetSize: isCenter ? 48 : (w.type === 'glyph' ? 22 : 15),
-                currentSize: isCenter ? 48 : (w.type === 'glyph' ? 22 : 15),
+                type: isGlyph ? 'glyph' : 'alpha',
+                targetSize: isCenter ? (isGlyph ? 46 : 32) : (isGlyph ? 22 : 15),
+                currentSize: isCenter ? (isGlyph ? 46 : 32) : (isGlyph ? 22 : 15),
                 isCenter: isCenter,
-                color: isCenter ? '#dc2626' : (w.type === 'glyph' ? '#d97706' : '#2563eb')
+                color: isCenter ? '#dc2626' : (isGlyph ? '#d97706' : '#2563eb')
             };
 
             if (isCenter) this.centerNode = node;
@@ -479,14 +413,15 @@ class FluidConceptCloud {
     }
 
     createLangDropdown() {
+        if (this.items.length === 0) return;
+
         const select = document.createElement('select');
         select.className = 'lang-select-dropdown';
 
-        this.words.forEach(w => {
+        this.items.forEach(item => {
             const option = document.createElement('option');
-            option.value = w.lang_id;
-            const langName = (testLanguages.find(l => l.id === w.lang_id) || {}).name || w.lang_id;
-            option.textContent = `${w.lang_id.toUpperCase()} - ${langName}`;
+            option.value = item.langId;
+            option.textContent = item.langId.toUpperCase();
             select.appendChild(option);
         });
 
@@ -499,15 +434,15 @@ class FluidConceptCloud {
     }
 
     setCenterByLang(langId) {
-        const targetNode = this.nodes.find(n => n.lang_id === langId);
+        const targetNode = this.nodes.find(n => n.langId === langId);
         if (!targetNode) return;
 
         this.nodes.forEach(n => {
-            const isTarget = (n.id === targetNode.id);
+            const isTarget = (n === targetNode);
             n.isCenter = isTarget;
 
             if (isTarget) {
-                n.targetSize = n.type === 'alpha' ? 36 : 50;
+                n.targetSize = n.type === 'glyph' ? 46 : 32;
                 n.color = '#dc2626';
                 this.centerNode = n;
             } else {
@@ -520,36 +455,34 @@ class FluidConceptCloud {
             this.langSelectEl.value = langId;
         }
 
-        // Обновляем список примеров снизу под выделенный язык
-        this.renderExamplesPanel(langId);
+        this.renderTranslationsPanel(langId);
     }
 
-    renderExamplesPanel(activeLangId) {
-        const targetEl = document.getElementById('examples-list-target');
-        const badgeEl = document.getElementById('examples-count-badge');
+    renderTranslationsPanel(activeLangId) {
+        const targetEl = document.getElementById('translations-list-target');
         if (!targetEl) return;
 
-        if (badgeEl) badgeEl.textContent = `${this.examples.length} фразы`;
-
-        // Сортируем так, чтобы выбранный язык оказался наверху
-        const sorted = [...this.examples].sort((a, b) => {
-            if (a.lang_id === activeLangId) return -1;
-            if (b.lang_id === activeLangId) return 1;
+        // Сортируем: сначала активный язык, потом остальные
+        const sorted = [...this.items].sort((a, b) => {
+            if (a.langId === activeLangId) return -1;
+            if (b.langId === activeLangId) return 1;
             return 0;
         });
 
-        targetEl.innerHTML = sorted.map(ex => {
-            const langObj = testLanguages.find(l => l.id === ex.lang_id) || { name: ex.lang_id };
-            const isActive = ex.lang_id === activeLangId;
+        targetEl.innerHTML = sorted.map(item => {
+            const isActive = item.langId === activeLangId;
             return `
-                <div class="example-card-item ${isActive ? 'active-lang' : ''}">
-                    <p class="ex-text-orig">${ex.text} <span style="font-size:0.65rem; color:#a1a1aa; font-weight:normal;">(${langObj.name})</span></p>
-                    ${ex.translation ? `<p class="ex-text-trans">${ex.translation}</p>` : ''}
+                <div class="translation-card-item ${isActive ? 'active-lang' : ''}">
+                    <div>
+                        <span class="tr-word-main">${item.word}</span>
+                        ${item.transcription ? `<span class="tr-transcription">[${item.transcription}]</span>` : ''}
+                        <span style="font-size:0.65rem; color:#a1a1aa; font-weight:700; margin-left:6px;">${item.langId.toUpperCase()}</span>
+                    </div>
+                    <div class="tr-translation">${item.translation}</div>
                 </div>
             `;
         }).join('');
 
-        // Прокручиваем к первому выделенному элементу
         targetEl.scrollTop = 0;
     }
 
@@ -566,11 +499,11 @@ class FluidConceptCloud {
             let a = this.nodes[i];
             a.currentSize += (a.targetSize - a.currentSize) * 0.08;
 
-            if (!a.isCenter && a !== this.draggedNode) {
+            if (!a.isCenter && a !== this.draggedNode && this.centerNode) {
                 const dx = this.centerNode.x - a.x;
                 const dy = this.centerNode.y - a.y;
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const targetDist = 90;
+                const targetDist = 85;
 
                 const force = (dist - targetDist) * 0.0012;
                 a.vx += (dx / dist) * force;
@@ -582,7 +515,7 @@ class FluidConceptCloud {
                 const dx = b.x - a.x;
                 const dy = b.y - a.y;
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const minDist = (a.currentSize + b.currentSize) * 1.3;
+                const minDist = (a.currentSize + b.currentSize) * 1.2;
 
                 if (dist < minDist) {
                     const overlap = minDist - dist;
@@ -607,13 +540,12 @@ class FluidConceptCloud {
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
 
-        // Отрисовка плавающих слов на чистом фоне
         this.nodes.forEach(n => {
             this.ctx.font = `${n.isCenter ? '800' : '600'} ${n.currentSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
             this.ctx.fillStyle = n.color;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(n.word, n.x, n.y);
+            this.ctx.fillText(n.word || '', n.x, n.y);
         });
     }
 
@@ -641,7 +573,7 @@ class FluidConceptCloud {
 
             if (clicked) {
                 this.draggedNode = clicked;
-                this.setCenterByLang(clicked.lang_id);
+                this.setCenterByLang(clicked.langId);
             }
         };
 
