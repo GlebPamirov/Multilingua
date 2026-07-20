@@ -38,19 +38,17 @@ async function initApp() {
         
         const data = await response.json();
         
-        // Наполняем глобальное состояние (работаем через window.APP_STATE)
+        // Наполняем глобальное состояние
         window.APP_STATE.languages = data.languages || [];
         window.APP_STATE.words = data.words || [];
         window.APP_STATE.examples = data.examples || [];
         
         updateConnectionStatus('online', 'БД Online');
         
-        // Вызываем функции отрисовки интерфейса из первого файла, 
-        // если они объявлены в глобальной области видимости
         if (typeof renderLanguageList === 'function') renderLanguageList();
         if (typeof populateLanguageSelects === 'function') populateLanguageSelects();
         
-        // Маршрутизация экранов
+        // Перерисовываем активный экран ПОСЛЕ того, как данные записались в APP_STATE
         const activeNav = document.querySelector('.nav-btn.active');
         if (activeNav) {
             switchScreen(activeNav.dataset.screen);
@@ -138,9 +136,9 @@ function switchScreen(screenName) {
             }
             break;
         case 'cards':
-            // ИСПРАВЛЕНО: имя функции изменено с initCardsScreen на initCards
             if (typeof window.initCards === 'function') {
-                window.initCards(mainContainer);
+                // ПЕРЕДАЕМ ДАННЫЕ ИЗ ГЛОБАЛЬНОГО СОСТОЯНИЯ:
+                window.initCards(mainContainer, window.APP_STATE.words);
             } else {
                 mainContainer.innerHTML = '<p class="empty-notify">Модуль интервальных карточек скоро будет подключен...</p>';
             }
